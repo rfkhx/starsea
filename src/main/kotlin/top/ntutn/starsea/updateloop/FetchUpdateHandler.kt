@@ -1,19 +1,20 @@
 package top.ntutn.starsea.updateloop
 
 import kotlinx.coroutines.*
-import okhttp3.MediaType
-import okhttp3.RequestBody
 import retrofit2.HttpException
 import top.ntutn.starsea.BotApi
 import top.ntutn.starsea.BotToken
+import top.ntutn.starsea.arch.Handler
+import top.ntutn.starsea.arch.Message
 import top.ntutn.starsea.plugin.PluginManager
-import top.ntutn.starsea.util.*
+import top.ntutn.starsea.util.ApplicationContext
+import top.ntutn.starsea.util.ConfigUtil
+import top.ntutn.starsea.util.LoggerOwner
+import top.ntutn.starsea.util.slf4jLoggerOwner
 import top.ntutn.starseasdk.v1.BotContentProvider
-import java.io.File
 import java.io.IOException
-import kotlin.math.log
 
-class FetchUpdateHandler : LoggerOwner by slf4jLoggerOwner<FetchUpdateHandler>() {
+class FetchUpdateHandler : Handler(), LoggerOwner by slf4jLoggerOwner<FetchUpdateHandler>() {
     private lateinit var job: Job
     private var confirmed = 0L
     private val botApi by lazy {
@@ -22,29 +23,44 @@ class FetchUpdateHandler : LoggerOwner by slf4jLoggerOwner<FetchUpdateHandler>()
     private val botContentPlugins by lazy {
         PluginManager.loadServices<BotContentProvider>()
     }
+    var failedTimes = 0
+
+    override fun handleMessage(message: Message) {
+        super.handleMessage(message)
+        job = SupervisorJob()
+
+        if (ApplicationContext.exiting) {
+            return
+        }
+        CoroutineScope(Dispatchers.IO + job).launch {
+            kotlin.runCatching {
+                singleFetch()
+            }.onSuccess {
+                failedTimes = 0
+            }.onFailure {
+                if (it is CancellationException) {
+                    throw it
+                }
+                failedTimes++
+                logger.error("获取消息失败，重试计数{}", failedTimes, it)
+                if (it is HttpException) {
+                    logger.debug(
+                        "code = {}, message= {}, error = {}",
+                        it.code(),
+                        it.message(),
+                        it.response()?.errorBody()
+                    )
+                }
+                if (failedTimes >= 5) {
+                    throw RuntimeException("too much network failure.")
+                }
+            }.getOrThrow()
+            sendMessage(Message(0))
+        }
+    }
 
     fun startFetch() {
-        job = SupervisorJob()
-        CoroutineScope(Dispatchers.IO + job).launch {
-            var failedTimes = 0
-            while (true) {
-                kotlin.runCatching {
-                    singleFetch()
-                }.onSuccess {
-                    failedTimes = 0
-                }.onFailure {
-                    failedTimes++
-                    logger.error("获取消息失败，重试计数{}", failedTimes, it)
-                    if (it is HttpException) {
-                        logger.debug("code = {}, message= {}, error = {}", it.code(), it.message(), it.response()?.errorBody())
-                    }
-                    if (failedTimes > 5) {
-                        // TODO 直接退出整个机器人
-                        stopFetch()
-                    }
-                }
-            }
-        }
+        sendMessage(Message(0))
     }
 
     /**
@@ -86,5 +102,6 @@ class FetchUpdateHandler : LoggerOwner by slf4jLoggerOwner<FetchUpdateHandler>()
 
     fun stopFetch() {
         job.cancel()
+        clearMessages()
     }
 }

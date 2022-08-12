@@ -16,7 +16,7 @@ object RetrofitManager {
 
     const val DEFAULT_TIMEOUT = 15
 
-    val okHttpClient: OkHttpClient by lazy {
+    private val okHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(1L, TimeUnit.DAYS) // 超时相关逻辑由 [top.ntutn.starsea.network.TimeoutCallAdapterFactory] 控制
             .readTimeout(1L, TimeUnit.DAYS)
