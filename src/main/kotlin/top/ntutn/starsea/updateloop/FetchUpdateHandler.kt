@@ -4,14 +4,15 @@ import kotlinx.coroutines.*
 import retrofit2.HttpException
 import top.ntutn.starsea.BotApi
 import top.ntutn.starsea.BotToken
+import top.ntutn.starsea.arch.ApplicationContext
 import top.ntutn.starsea.arch.Handler
 import top.ntutn.starsea.arch.Message
-import top.ntutn.starsea.plugin.PluginManager
-import top.ntutn.starsea.util.ApplicationContext
+import top.ntutn.starsea.updateloop.updatehandler.PhotoUpdateHandler
+import top.ntutn.starsea.updateloop.updatehandler.StubUpdateHandler
+import top.ntutn.starsea.updateloop.updatehandler.TextUpdateHandler
 import top.ntutn.starsea.util.ConfigUtil
 import top.ntutn.starsea.util.LoggerOwner
 import top.ntutn.starsea.util.slf4jLoggerOwner
-import top.ntutn.starseasdk.v1.BotContentProvider
 import java.io.IOException
 
 class FetchUpdateHandler : Handler(), LoggerOwner by slf4jLoggerOwner<FetchUpdateHandler>() {
@@ -20,18 +21,13 @@ class FetchUpdateHandler : Handler(), LoggerOwner by slf4jLoggerOwner<FetchUpdat
     private val botApi by lazy {
         BotApi.get()
     }
-    private val botContentPlugins by lazy {
-        PluginManager.loadServices<BotContentProvider>()
-    }
-    var failedTimes = 0
+    private val updateHandlers = PhotoUpdateHandler(TextUpdateHandler(StubUpdateHandler()))
+    private var failedTimes = 0
 
     override fun handleMessage(message: Message) {
         super.handleMessage(message)
         job = SupervisorJob()
 
-        if (ApplicationContext.exiting) {
-            return
-        }
         CoroutineScope(Dispatchers.IO + job).launch {
             kotlin.runCatching {
                 singleFetch()
@@ -51,8 +47,8 @@ class FetchUpdateHandler : Handler(), LoggerOwner by slf4jLoggerOwner<FetchUpdat
                         it.response()?.errorBody()
                     )
                 }
-                if (failedTimes >= 5) {
-                    throw RuntimeException("too much network failure.")
+                if (failedTimes >= 5 || ApplicationContext.exiting) {
+                    throw RuntimeException("too much network failure.", it)
                 }
             }.getOrThrow()
             sendMessage(Message(0))
@@ -76,26 +72,15 @@ class FetchUpdateHandler : Handler(), LoggerOwner by slf4jLoggerOwner<FetchUpdat
             logger.debug("取到消息{}", it)
             require(it.ok)
         }.getOrThrow().result
+
+        if (ApplicationContext.exiting) {
+            // 之所以放到这里才抛出异常，是因为要多进行一次请求，确认停机前最后一条消息
+            throw IllegalStateException("System is closing")
+        }
         withContext(Dispatchers.Main) {
             confirmed = result.maxOfOrNull { it.updateId } ?: return@withContext
             result.forEach { update ->
-                (update.message ?: update.editedMessage)?.let {
-                    when {
-                        !it.text.isNullOrBlank() -> {
-                            logger.info("received text message {} from {}", it.text, it.chat)
-                            val context = TextChatContextImpl(it.chat.id.toString(), it.text)
-                            var handled: Boolean
-                            for (i in botContentPlugins) {
-                                logger.debug("尝试交给{}处理", i.pluginName)
-                                handled = i.onTextMessage(context)
-                                if (handled) {
-                                    logger.info("{} 处理了这条消息", i.pluginName)
-                                    break
-                                }
-                            }
-                        }
-                    }
-                }
+                updateHandlers.handleUpdate(update)
             }
         }
     }

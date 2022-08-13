@@ -2,6 +2,7 @@ package top.ntutn.starsea.bean
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import top.ntutn.starseasdk.v2.IPhotoSize
 
 /**
  * This object represents one size of a photo or a file / sticker thumbnail.
@@ -13,9 +14,9 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class PhotoSizeBean(
-    @SerialName("file_id") val fileId: String,
+    @SerialName("file_id") override val fileId: String,
     @SerialName("file_unique_id") val fileUniqueId: String,
-    val width: Int,
-    val height: Int,
+    override val width: Int,
+    override val height: Int,
     @SerialName("file_size") val fileSize: Int? = null
-)
+): IPhotoSize

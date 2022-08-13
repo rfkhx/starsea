@@ -44,7 +44,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.2.11")
 
     // 机器人插件API
-    implementation("com.github.rfkhx:starseasdk:1.0.0")
+    implementation("com.github.rfkhx:starseasdk:1.1.3")
 
     testImplementation(kotlin("test"))
 }

@@ -3,14 +3,12 @@ package top.ntutn.starsea
 import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers
 import top.ntutn.starsea.arch.Looper
-import top.ntutn.starsea.plugin.PluginClassLoader
 import top.ntutn.starsea.plugin.PluginManager
 import top.ntutn.starsea.updateloop.FetchUpdateHandler
-import top.ntutn.starsea.util.ApplicationContext
+import top.ntutn.starsea.arch.ApplicationContext
+import top.ntutn.starsea.plugin.PluginDispatcher
 import top.ntutn.starsea.util.ConfigUtil
-import top.ntutn.starsea.util.Slf4jLoggerOwner
 import top.ntutn.starsea.util.slf4jLogger
-import kotlin.system.exitProcess
 
 object StarSea
 
@@ -24,6 +22,7 @@ fun main(args: Array<String>) {
 
     ApplicationContext.init()
     PluginManager.loadPlugins()
+    PluginDispatcher.init()
 
     GlobalScope.launch(Dispatchers.Main) {
         val configBean = ConfigUtil.configBean

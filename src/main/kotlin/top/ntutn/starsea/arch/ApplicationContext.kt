@@ -1,7 +1,7 @@
-package top.ntutn.starsea.util
+package top.ntutn.starsea.arch
 
-import top.ntutn.starsea.arch.Handler
-import top.ntutn.starsea.arch.Looper
+import top.ntutn.starsea.util.LoggerOwner
+import top.ntutn.starsea.util.slf4jLoggerOwner
 import java.io.File
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess

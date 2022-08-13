@@ -1,6 +1,10 @@
 package top.ntutn.starsea.arch
 
 open class Handler(looper: Looper? = null) {
+    companion object {
+        private val EMPTY_MESSAGE = Message(-1)
+    }
+
     private var mLooper: Looper
     private var mQueue: MessageQueue
     private var mCallback: ((Message) -> Unit)? = null
@@ -17,6 +21,10 @@ open class Handler(looper: Looper? = null) {
         msg.target = this
         mQueue.enqueue(msg, System.currentTimeMillis() + delay)
     }
+
+    fun sendEmptyMessage() = sendMessage(EMPTY_MESSAGE)
+
+    fun sendEmptyMessageDelayed(delay: Long) = sendMessageDelay(EMPTY_MESSAGE, delay)
 
     fun post(block: () -> Unit) {
         sendMessage(Message(0, callback = block))

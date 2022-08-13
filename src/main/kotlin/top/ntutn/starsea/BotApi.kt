@@ -9,6 +9,9 @@ import top.ntutn.starsea.bean.UpdateBean
 import top.ntutn.starsea.bean.UserBean
 import top.ntutn.starsea.network.RetrofitManager
 import top.ntutn.starsea.network.Timeout
+import top.ntutn.starsea.util.toMultiplePart
+import top.ntutn.starsea.util.toRequestBody
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 @JvmInline
@@ -58,8 +61,14 @@ interface BotApi {
      */
     @POST("/bot{token}/sendPhoto")
     @Multipart
+    @Deprecated("仅用于retrofit")
     suspend fun sendPhoto(@Path("token") token: BotToken, @Part("chat_id") chatId: RequestBody, @Part photo: MultipartBody.Part): ResultWrapperBean<MessageBean>
 
+    /**
+     * 对上面方法的一个封装。
+     */
+    suspend fun sendPhoto(@Path("token") token: BotToken, @Part("chat_id") chatId: String, @Part photo: File): ResultWrapperBean<MessageBean>
+        = sendPhoto(token, chatId.toRequestBody(), photo.toMultiplePart("photo"))
 
     companion object {
         fun get(): BotApi {
