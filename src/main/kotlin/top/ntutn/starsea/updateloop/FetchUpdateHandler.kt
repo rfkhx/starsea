@@ -50,7 +50,7 @@ class FetchUpdateHandler : Handler(), LoggerOwner by slf4jLoggerOwner<FetchUpdat
                 if (failedTimes >= 5 || ApplicationContext.exiting) {
                     throw RuntimeException("too much network failure.", it)
                 }
-            }.getOrThrow()
+            }.getOrNull()
             sendMessage(Message(0))
         }
     }
